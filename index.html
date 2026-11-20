@@ -6,7 +6,7 @@
   <title>Наши долги</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+ <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: #0f172a; color: #f8fafc; min-height: 100vh; padding-bottom: 80px; }
@@ -45,7 +45,7 @@
 </head>
 <body>
   <div id="auth-screen" class="center-screen">
-    <div id="auth-message" style="color:#cbd5e1;font-size:16px;">Загрузка данных...</div>
+    <div id="auth-message" style="color:#cbd5e1;font-size:15px;">Загрузка данных...</div>
   </div>
   <div id="app" class="container hidden">
     <div class="header">
@@ -108,7 +108,10 @@
       <button onclick="submitPayment()" class="btn-primary" style="width:100%;padding:12px;">Подтвердить оплату</button>
     </div>
   </div>
-   <script>
+  <script>
+    window.onerror = function(msg, url, line) {
+      document.getElementById('auth-message').innerHTML = '<div class="rose">Ошибка кода (строка ' + line + '):</div><div style="font-size:12px;color:#94a3b8;margin-top:6px;">' + msg + '</div>';
+    };
     const SUPABASE_URL = 'https://' + 'pefnlxkubxrfccmerogb' + '.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlZm5seGt1YnhyZmNjbWVyb2diIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUxNzE3NTksImV4cCI6MjExMDc0Nzc1OX0.BZXwvqcUtMrmbAaPqNmuK43iePwRXJURxL8F2hLTtd0';
     const tg = window.Telegram ? window.Telegram.WebApp : null;
@@ -122,28 +125,33 @@
     }
 
     async function init() {
-      if (!window.supabase) {
-        document.getElementById('auth-message').innerHTML = '<div class="rose" style="font-weight:700;">Ошибка сети</div><div style="font-size:13px;color:#94a3b8;margin-top:6px;">Не удалось загрузить базу данных.</div>';
-        return;
+      try {
+        if (!window.supabase) {
+          document.getElementById('auth-message').innerHTML = '<div class="rose">Библиотека базы не загрузилась</div>';
+          return;
+        }
+        db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const userId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : null;
+        if (!userId || !ALLOWED_USERS[userId]) {
+          document.getElementById('auth-message').innerHTML = '<div class="rose" style="font-weight:700;font-size:18px;">Доступ закрыт</div><div style="font-size:13px;color:#94a3b8;margin-top:6px;">Личное приложение для двоих.<br>ID: ' + (userId || 'не определен') + '</div>';
+          return;
+        }
+        currentUser = { id: userId, name: ALLOWED_USERS[userId] };
+        document.getElementById('welcome-user').innerText = 'Вы вошли как: ' + currentUser.name;
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('new-date').value = formatDateISO(tomorrow);
+        await loadData();
+      } catch (e) {
+        document.getElementById('auth-message').innerHTML = '<div class="rose">Ошибка запуска: ' + e.message + '</div>';
       }
-      db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      const userId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : null;
-      if (!userId || !ALLOWED_USERS[userId]) {
-        document.getElementById('auth-message').innerHTML = '<div class="rose" style="font-weight:700;font-size:18px;">Доступ закрыт</div><div style="font-size:13px;color:#94a3b8;margin-top:6px;">Личное приложение для двоих.<br>ID: ' + (userId || 'не определен') + '</div>';
-        return;
-      }
-      currentUser = { id: userId, name: ALLOWED_USERS[userId] };
-      document.getElementById('welcome-user').innerText = 'Вы вошли как: ' + currentUser.name;
-      document.getElementById('auth-screen').classList.add('hidden');
-      document.getElementById('app').classList.remove('hidden');
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      document.getElementById('new-date').value = formatDateISO(tomorrow);
-      await loadData();
     }
 
     async function loadData() {
       const resDebts = await db.from('debts').select('*').order('next_payment_date', { ascending: true });
+      if (resDebts.error) { alert('Ошибка чтения базы: ' + resDebts.error.message); return; }
       const resPayments = await db.from('payments').select('*, debts(title)').order('paid_at', { ascending: false }).limit(10);
       debtsData = resDebts.data || new Array();
       renderChart();
@@ -249,5 +257,16 @@
       const res1 = await db.from('payments').insert(new Array({ debt_id: selectedDebt.id, paid_by_name: currentUser.name, amount: amount }));
       if (res1.error) { alert('Ошибка платежа: ' + res1.error.message); return; }
       await db.from('debts').update({ remaining_amount: newRemaining, next_payment_date: nextDate }).eq('id', selectedDebt.id);
-      closeModals(); await loadData();
+      closeModals();
+      await loadData();
     }
+    async function deleteDebt(id) {
+      if (confirm('Удалить этот долг?')) {
+        await db.from('debts').delete().eq('id', id);
+        await loadData();
+      }
+    }
+    init();
+  </script>
+</body>
+</html>
