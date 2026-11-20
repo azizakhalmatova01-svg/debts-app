@@ -5,126 +5,131 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Наши долги</title>
   <script src="https://telegram.org"></script>
-  <script src="https://tailwindcss.com"></script>
-  <script src="https://jsdelivr.net"></script>
-  <script src="https://jsdelivr.net"></script>
+  <script src="https://cloudflare.com"></script>
+  <script src="https://unpkg.com"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #0f172a; color: #f8fafc; min-height: 100vh; padding-bottom: 80px; }
+    .hidden { display: none !important; }
+    .container { max-width: 460px; margin: 0 auto; padding: 16px; }
+    .center-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; text-align: center; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding-top: 6px; }
+    .header h1 { font-size: 20px; font-weight: 700; }
+    .header p { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+    .btn-primary { background: #10b981; color: #022c22; border: none; padding: 10px 16px; border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer; }
+    .btn-secondary { background: #334155; color: #fff; border: none; padding: 10px; border-radius: 10px; font-weight: 600; font-size: 13px; width: 100%; cursor: pointer; margin-top: 10px; }
+    .btn-del { background: transparent; border: none; color: #64748b; font-size: 12px; cursor: pointer; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 18px; padding: 16px; margin-bottom: 16px; }
+    .chart-box { position: relative; height: 180px; display: flex; align-items: center; justify-content: center; }
+    .chart-center { position: absolute; text-align: center; pointer-events: none; }
+    .chart-center span { display: block; font-size: 12px; color: #94a3b8; }
+    .chart-center strong { font-size: 18px; color: #fff; }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #334155; text-align: center; font-size: 12px; }
+    .stats-grid span { color: #94a3b8; display: block; margin-bottom: 2px; }
+    .stats-grid strong { font-size: 14px; }
+    .green { color: #10b981; }
+    .amber { color: #fbbf24; }
+    .rose { color: #f43f5e; }
+    .sec-title { font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin: 18px 0 10px; }
+    .progress-bg { width: 100%; background: #0f172a; height: 8px; border-radius: 99px; overflow: hidden; margin-top: 6px; }
+    .progress-fill { background: #10b981; height: 100%; border-radius: 99px; transition: width 0.4s; }
+    .row-between { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+    .pay-item { display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px 12px; border-radius: 12px; margin-bottom: 8px; font-size: 12px; border: 1px solid #334155; }
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+    .modal-box { background: #1e293b; border: 1px solid #334155; border-radius: 20px; padding: 20px; width: 100%; max-width: 400px; }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+    .field input, .field select { width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 10px 12px; border-radius: 10px; font-size: 14px; outline: none; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen font-sans pb-24">
-  <div id="auth-screen" class="flex flex-col items-center justify-center min-h-screen p-6 text-center">
-    <div id="auth-message" class="text-lg text-slate-300">Проверка доступа...</div>
+<body>
+  <div id="auth-screen" class="center-screen">
+    <div id="auth-message" style="color:#cbd5e1;font-size:16px;">Загрузка данных...</div>
   </div>
-  <div id="app" class="hidden max-w-md mx-auto p-4 space-y-5">
-    <div class="flex justify-between items-center pt-2">
+  <div id="app" class="container hidden">
+    <div class="header">
       <div>
-        <h1 class="text-xl font-bold">Учет долгов</h1>
-        <p id="welcome-user" class="text-xs text-slate-400"></p>
+        <h1>Учет долгов</h1>
+        <p id="welcome-user"></p>
       </div>
-      <button onclick="openAddModal()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold px-4 py-2 rounded-xl text-sm shadow-lg transition">+ Долг</button>
+      <button onclick="openAddModal()" class="btn-primary">+ Долг</button>
     </div>
-    <div class="bg-slate-800/80 border border-slate-700/50 rounded-2xl p-4 shadow-xl">
-      <div class="relative h-48 flex items-center justify-center">
+    <div class="card">
+      <div class="chart-box">
         <canvas id="debtChart"></canvas>
-        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span class="text-xs text-slate-400">Осталось</span>
-          <span id="total-remaining" class="text-lg font-bold text-white">0</span>
+        <div class="chart-center">
+          <span>Осталось</span>
+          <strong id="total-remaining">0</strong>
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-700/50 text-center text-xs">
-        <div>
-          <span class="text-slate-400 block">Всего было</span>
-          <span id="total-initial" class="font-semibold text-slate-200 text-sm">0</span>
-        </div>
-        <div>
-          <span class="text-slate-400 block">Уже выплачено</span>
-          <span id="total-paid" class="font-semibold text-emerald-400 text-sm">0</span>
-        </div>
+      <div class="stats-grid">
+        <div><span>Всего было</span><strong id="total-initial">0</strong></div>
+        <div><span>Уже выплачено</span><strong id="total-paid" class="green">0</strong></div>
       </div>
     </div>
-    <div>
-      <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Активные долги</h2>
-      <div id="debts-list" class="space-y-3"></div>
-    </div>
-    <div>
-      <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Последние оплаты</h2>
-      <div id="payments-list" class="space-y-2 text-xs"></div>
+    <div class="sec-title">Активные долги</div>
+    <div id="debts-list"></div>
+    <div class="sec-title">Последние оплаты</div>
+    <div id="payments-list"></div>
+  </div>
+  <div id="add-modal" class="modal hidden">
+    <div class="modal-box">
+      <div class="row-between" style="margin-bottom:14px;">
+        <h3 style="font-size:18px;">Новый долг</h3>
+        <button onclick="closeModals()" class="btn-del" style="font-size:22px;">&times;</button>
+      </div>
+      <div class="field"><label>Название</label><input id="new-title" type="text" placeholder="Например: Кредитка или Долг"></div>
+      <div class="grid-2">
+        <div class="field"><label>Общая сумма</label><input id="new-total" type="number" placeholder="100000"></div>
+        <div class="field"><label>Обычный платеж</label><input id="new-regular" type="number" placeholder="10000"></div>
+      </div>
+      <div class="field">
+        <label>Периодичность напоминаний</label>
+        <select id="new-freq" onchange="toggleCustomDays()">
+          <option value="monthly_1st">1-го числа каждого месяца</option>
+          <option value="every_7_days">Каждые 7 дней</option>
+          <option value="custom_days">Свой интервал (в днях)</option>
+        </select>
+      </div>
+      <div id="custom-days-block" class="field hidden"><label>Через сколько дней повторять?</label><input id="new-custom-days" type="number" value="14"></div>
+      <div class="field"><label>Дата ближайшего платежа</label><input id="new-date" type="date"></div>
+      <button onclick="saveDebt()" class="btn-primary" style="width:100%;padding:12px;">Сохранить</button>
     </div>
   </div>
-  <div id="add-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-    <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-5 space-y-4">
-      <div class="flex justify-between items-center">
-        <h3 class="text-lg font-bold">Новый долг</h3>
-        <button onclick="closeModals()" class="text-slate-400 text-xl">&times;</button>
+  <div id="pay-modal" class="modal hidden">
+    <div class="modal-box">
+      <div class="row-between" style="margin-bottom:8px;">
+        <h3 id="pay-modal-title" style="font-size:18px;">Внести оплату</h3>
+        <button onclick="closeModals()" class="btn-del" style="font-size:22px;">&times;</button>
       </div>
-      <div class="space-y-3 text-sm">
-        <div>
-          <label class="text-slate-400 text-xs">Название (кому или за что)</label>
-          <input id="new-title" type="text" placeholder="Например: Кредитка или Долг другу" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 mt-1 text-white focus:outline-none focus:border-emerald-500">
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-slate-400 text-xs">Общая сумма</label>
-            <input id="new-total" type="number" placeholder="100000" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 mt-1 text-white focus:outline-none focus:border-emerald-500">
-          </div>
-          <div>
-            <label class="text-slate-400 text-xs">Обычный платеж</label>
-            <input id="new-regular" type="number" placeholder="10000" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 mt-1 text-white focus:outline-none focus:border-emerald-500">
-          </div>
-        </div>
-        <div>
-          <label class="text-slate-400 text-xs">Периодичность напоминаний</label>
-          <select id="new-freq" onchange="toggleCustomDays()" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 mt-1 text-white focus:outline-none focus:border-emerald-500">
-            <option value="monthly_1st">1-го числа каждого месяца</option>
-            <option value="every_7_days">Каждые 7 дней</option>
-            <option value="custom_days">Свой интервал (в днях)</option>
-          </select>
-        </div>
-        <div id="custom-days-block" class="hidden">
-          <label class="text-slate-400 text-xs">Через сколько дней повторять?</label>
-          <input id="new-custom-days" type="number" value="14" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 mt-1 text-white">
-        </div>
-        <div>
-          <label class="text-slate-400 text-xs">Дата ближайшего платежа</label>
-          <input id="new-date" type="date" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 mt-1 text-white focus:outline-none focus:border-emerald-500">
-        </div>
-      </div>
-      <button onclick="saveDebt()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl transition">Сохранить</button>
-    </div>
-  </div>
-  <div id="pay-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-    <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-5 space-y-4">
-      <div class="flex justify-between items-center">
-        <h3 id="pay-modal-title" class="text-lg font-bold">Внести оплату</h3>
-        <button onclick="closeModals()" class="text-slate-400 text-xl">&times;</button>
-      </div>
-      <p id="pay-modal-sub" class="text-xs text-slate-400"></p>
-      <div>
-        <label class="text-slate-400 text-xs">Сумма платежа</label>
-        <input id="pay-amount" type="number" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 mt-1 text-white text-lg font-bold focus:outline-none focus:border-emerald-500">
-      </div>
-      <button onclick="submitPayment()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl transition">Подтвердить оплату</button>
+      <p id="pay-modal-sub" style="font-size:12px;color:#94a3b8;margin-bottom:12px;"></p>
+      <div class="field"><label>Сумма платежа</label><input id="pay-amount" type="number" style="font-size:18px;font-weight:700;"></div>
+      <button onclick="submitPayment()" class="btn-primary" style="width:100%;padding:12px;">Подтвердить оплату</button>
     </div>
   </div>
   <script>
     const SUPABASE_URL = 'https://supabase.co';
     const SUPABASE_KEY = 'sb_publishable_xr3WvZpd4TcSbSIanqplqA_5QoCgAqS';
-    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    const tg = window.Telegram.WebApp;
-    tg.expand();
-    let currentUser = null;
-    let debtsData = new Array();
-    let selectedDebt = null;
-    let chartInstance = null;
+    const tg = window.Telegram ? window.Telegram.WebApp : null;
+    if (tg) tg.expand();
+    let db = null, currentUser = null, debtsData = new Array(), selectedDebt = null, chartInstance = null;
     const ALLOWED_USERS = { 8866930683: 'Азиз', 6344154054: 'Азиза' };
+
     function formatDateISO(dateObj) {
-      const y = dateObj.getFullYear();
-      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-      const d = String(dateObj.getDate()).padStart(2, '0');
+      const y = dateObj.getFullYear(), m = String(dateObj.getMonth() + 1).padStart(2, '0'), d = String(dateObj.getDate()).padStart(2, '0');
       return y + '-' + m + '-' + d;
     }
+
     async function init() {
-      const userId = tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : null;
+      if (!window.supabase) {
+        document.getElementById('auth-message').innerHTML = '<div class="rose" style="font-weight:700;">Ошибка сети</div><div style="font-size:13px;color:#94a3b8;margin-top:6px;">Не удалось загрузить базу данных. Проверьте интернет или VPN.</div>';
+        return;
+      }
+      db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      const userId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : null;
       if (!userId || !ALLOWED_USERS[userId]) {
-        document.getElementById('auth-message').innerHTML = '<div class="text-rose-400 font-bold text-xl mb-2">Доступ закрыт</div><div class="text-sm text-slate-400">Личное приложение для двоих.<br>ID: ' + (userId || 'не определен') + '</div>';
+        document.getElementById('auth-message').innerHTML = '<div class="rose" style="font-weight:700;font-size:18px;">Доступ закрыт</div><div style="font-size:13px;color:#94a3b8;margin-top:6px;">Личное приложение для двоих.<br>ID: ' + (userId || 'не определен') + '</div>';
         return;
       }
       currentUser = { id: userId, name: ALLOWED_USERS[userId] };
@@ -136,6 +141,7 @@
       document.getElementById('new-date').value = formatDateISO(tomorrow);
       await loadData();
     }
+
     async function loadData() {
       const resDebts = await db.from('debts').select('*').order('next_payment_date', { ascending: true });
       const resPayments = await db.from('payments').select('*, debts(title)').order('paid_at', { ascending: false }).limit(10);
@@ -144,7 +150,9 @@
       renderDebts();
       renderPayments(resPayments.data || new Array());
     }
+
     function formatMoney(num) { return Number(num).toLocaleString('ru-RU'); }
+
     function renderChart() {
       const totalInitial = debtsData.reduce((sum, d) => sum + Number(d.total_amount), 0);
       const totalRemaining = debtsData.reduce((sum, d) => sum + Number(d.remaining_amount), 0);
@@ -152,6 +160,7 @@
       document.getElementById('total-initial').innerText = formatMoney(totalInitial);
       document.getElementById('total-remaining').innerText = formatMoney(totalRemaining);
       document.getElementById('total-paid').innerText = formatMoney(totalPaid);
+      if (!window.Chart) return;
       const ctx = document.getElementById('debtChart').getContext('2d');
       if (chartInstance) chartInstance.destroy();
       const hasData = totalInitial > 0;
@@ -159,20 +168,22 @@
         type: 'doughnut',
         data: {
           labels: new Array('Выплачено', 'Осталось'),
-          datasets: new Array({ data: hasData ? new Array(totalPaid, totalRemaining) : new Array(0, 1), backgroundColor: hasData ? new Array('#10b981', '#334155') : new Array('#1e293b', '#1e293b'), borderWidth: 0, cutout: '78%' })
+          datasets: new Array({ data: hasData ? new Array(totalPaid, totalRemaining) : new Array(0, 1), backgroundColor: hasData ? new Array('#10b981', '#334155') : new Array('#0f172a', '#0f172a'), borderWidth: 0, cutout: '76%' })
         },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: hasData } } }
       });
     }
+
     function getFreqLabel(freq, days) {
       if (freq === 'monthly_1st') return '1-го числа каждого мес.';
       if (freq === 'every_7_days') return 'Каждые 7 дней';
       return 'Каждые ' + days + ' дн.';
     }
+
     function renderDebts() {
       const list = document.getElementById('debts-list');
       if (debtsData.length === 0) {
-        list.innerHTML = '<div class="text-center text-slate-500 text-sm py-6 bg-slate-800/40 rounded-2xl">Долгов пока нет. Нажмите «+ Долг».</div>';
+        list.innerHTML = '<div class="card" style="text-align:center;color:#64748b;font-size:13px;">Долгов пока нет. Нажмите «+ Долг».</div>';
         return;
       }
       list.innerHTML = debtsData.map(d => {
@@ -180,19 +191,29 @@
         const percent = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 100;
         const isClosed = rem <= 0;
         const dateStr = new Date(d.next_payment_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-        const subText = isClosed ? 'Полностью закрыт 🎉' : 'След. платеж: <span class="text-amber-400 font-medium">' + dateStr + '</span> (' + getFreqLabel(d.frequency, d.custom_days) + ')';
-        const payBtn = !isClosed ? '<button onclick="openPayModal(\'' + d.id + '\')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 rounded-xl text-sm transition">Внести платеж (' + formatMoney(d.regular_payment) + ')</button>' : '';
-        return '<div class="bg-slate-800 border ' + (isClosed ? 'border-emerald-500/30 opacity-60' : 'border-slate-700/60') + ' rounded-2xl p-4 space-y-3"><div class="flex justify-between items-start"><div><h3 class="font-bold text-base">' + d.title + '</h3><p class="text-xs text-slate-400 mt-0.5">' + subText + '</p></div><button onclick="deleteDebt(\'' + d.id + '\')" class="text-slate-500 hover:text-rose-400 text-xs px-2 py-1">Удалить</button></div><div><div class="flex justify-between text-xs mb-1"><span class="text-slate-400">Остаток: <strong class="text-white">' + formatMoney(rem) + '</strong> из ' + formatMoney(total) + '</span><span class="text-emerald-400 font-semibold">' + percent + '%</span></div><div class="w-full bg-slate-900 rounded-full h-2.5 overflow-hidden"><div class="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style="width: ' + percent + '%"></div></div></div>' + payBtn + '</div>';
+        const subText = isClosed ? 'Полностью закрыт 🎉' : 'След. платеж: <span class="amber">' + dateStr + '</span> (' + getFreqLabel(d.frequency, d.custom_days) + ')';
+        const payBtn = !isClosed ? '<button onclick="openPayModal(\'' + d.id + '\')" class="btn-secondary">Внести платеж (' + formatMoney(d.regular_payment) + ')</button>' : '';
+        return '<div class="card" style="' + (isClosed ? 'opacity:0.6;' : '') + '">' +
+          '<div class="row-between" style="align-items:flex-start;margin-bottom:10px;">' +
+            '<div><div style="font-weight:700;font-size:16px;">' + d.title + '</div><div style="font-size:12px;color:#94a3b8;margin-top:3px;">' + subText + '</div></div>' +
+            '<button onclick="deleteDebt(\'' + d.id + '\')" class="btn-del">Удалить</button>' +
+          '</div>' +
+          '<div class="row-between"><span style="color:#94a3b8;">Остаток: <strong style="color:#fff;">' + formatMoney(rem) + '</strong> из ' + formatMoney(total) + '</span><span class="green" style="font-weight:700;">' + percent + '%</span></div>' +
+          '<div class="progress-bg"><div class="progress-fill" style="width:' + percent + '%"></div></div>' +
+          payBtn +
+        '</div>';
       }).join('');
     }
+
     function renderPayments(payments) {
       const list = document.getElementById('payments-list');
-      if (payments.length === 0) { list.innerHTML = '<div class="text-slate-500 text-center py-2">История платежей пуста</div>'; return; }
+      if (payments.length === 0) { list.innerHTML = '<div style="color:#64748b;text-align:center;font-size:12px;">История платежей пуста</div>'; return; }
       list.innerHTML = payments.map(p => {
         const d = new Date(p.paid_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-        return '<div class="flex justify-between items-center bg-slate-800/40 px-3 py-2 rounded-xl border border-slate-800"><div><span class="font-medium text-slate-200">' + (p.debts ? p.debts.title : 'Долг') + '</span><span class="text-slate-500 ml-1">• ' + p.paid_by_name + ' (' + d + ')</span></div><span class="text-emerald-400 font-semibold">-' + formatMoney(p.amount) + '</span></div>';
+        return '<div class="pay-item"><div><strong>' + (p.debts ? p.debts.title : 'Долг') + '</strong> <span style="color:#64748b;">• ' + p.paid_by_name + ' (' + d + ')</span></div><span class="green" style="font-weight:700;">-' + formatMoney(p.amount) + '</span></div>';
       }).join('');
     }
+
     function toggleCustomDays() { document.getElementById('custom-days-block').classList.toggle('hidden', document.getElementById('new-freq').value !== 'custom_days'); }
     function openAddModal() { document.getElementById('add-modal').classList.remove('hidden'); }
     function openPayModal(id) {
