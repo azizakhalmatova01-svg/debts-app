@@ -10,27 +10,17 @@
   <script src="https://jsdelivr.net"></script>
 </head>
 <body class="bg-slate-900 text-white min-h-screen font-sans pb-24">
-
-  <!-- Экран загрузки / отказа в доступе -->
   <div id="auth-screen" class="flex flex-col items-center justify-center min-h-screen p-6 text-center">
     <div id="auth-message" class="text-lg text-slate-300">Проверка доступа...</div>
   </div>
-
-  <!-- Основной интерфейс -->
   <div id="app" class="hidden max-w-md mx-auto p-4 space-y-5">
-    
-    <!-- Шапка -->
     <div class="flex justify-between items-center pt-2">
       <div>
         <h1 class="text-xl font-bold">Учет долгов</h1>
         <p id="welcome-user" class="text-xs text-slate-400"></p>
       </div>
-      <button onclick="openAddModal()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold px-4 py-2 rounded-xl text-sm shadow-lg transition">
-        + Долг
-      </button>
+      <button onclick="openAddModal()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-semibold px-4 py-2 rounded-xl text-sm shadow-lg transition">+ Долг</button>
     </div>
-
-    <!-- Карточка с графиком -->
     <div class="bg-slate-800/80 border border-slate-700/50 rounded-2xl p-4 shadow-xl">
       <div class="relative h-48 flex items-center justify-center">
         <canvas id="debtChart"></canvas>
@@ -50,21 +40,15 @@
         </div>
       </div>
     </div>
-
-    <!-- Список долгов -->
     <div>
       <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Активные долги</h2>
       <div id="debts-list" class="space-y-3"></div>
     </div>
-
-    <!-- История последних платежей -->
     <div>
       <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Последние оплаты</h2>
       <div id="payments-list" class="space-y-2 text-xs"></div>
     </div>
   </div>
-
-  <!-- Модальное окно: Добавить долг -->
   <div id="add-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
     <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-5 space-y-4">
       <div class="flex justify-between items-center">
@@ -106,8 +90,6 @@
       <button onclick="saveDebt()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl transition">Сохранить</button>
     </div>
   </div>
-
-  <!-- Модальное окно: Внести платеж -->
   <div id="pay-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
     <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-2xl p-5 space-y-4">
       <div class="flex justify-between items-center">
@@ -122,93 +104,132 @@
       <button onclick="submitPayment()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl transition">Подтвердить оплату</button>
     </div>
   </div>
-
   <script>
     const SUPABASE_URL = 'https://supabase.co';
     const SUPABASE_KEY = 'sb_publishable_xr3WvZpd4TcSbSIanqplqA_5QoCgAqS';
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const tg = window.Telegram.WebApp;
     tg.expand();
-
     let currentUser = null;
-    let debtsData = [];
+    let debtsData = new Array();
     let selectedDebt = null;
     let chartInstance = null;
-
-    const ALLOWED_USERS = {
-      8866930683: 'Азиз',
-      6344154054: 'Азиза'
-    };
-
+    const ALLOWED_USERS = { 8866930683: 'Азиз', 6344154054: 'Азиза' };
+    function formatDateISO(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + d;
+    }
     async function init() {
-      const userId = tg.initDataUnsafe?.user?.id;
-      
+      const userId = tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user.id : null;
       if (!userId || !ALLOWED_USERS[userId]) {
-        document.getElementById('auth-message').innerHTML = `
-          <div class="text-rose-400 font-bold text-xl mb-2">Доступ закрыт</div>
-          <div class="text-sm text-slate-400">Это личное приложение только для двоих.<br>Ваш ID: ${userId || 'не определен (откройте через Telegram)'}</div>
-        `;
+        document.getElementById('auth-message').innerHTML = '<div class="text-rose-400 font-bold text-xl mb-2">Доступ закрыт</div><div class="text-sm text-slate-400">Личное приложение для двоих.<br>ID: ' + (userId || 'не определен') + '</div>';
         return;
       }
-
       currentUser = { id: userId, name: ALLOWED_USERS[userId] };
-      document.getElementById('welcome-user').innerText = `Вы вошли как: ${currentUser.name}`;
+      document.getElementById('welcome-user').innerText = 'Вы вошли как: ' + currentUser.name;
       document.getElementById('auth-screen').classList.add('hidden');
       document.getElementById('app').classList.remove('hidden');
-
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      document.getElementById('new-date').value = tomorrow.toISOString().split('T')[0];
-
+      document.getElementById('new-date').value = formatDateISO(tomorrow);
       await loadData();
     }
-
     async function loadData() {
-      const { data: debts } = await db.from('debts').select('*').order('next_payment_date', { ascending: true });
-      const { data: payments } = await db.from('payments').select('*, debts(title)').order('paid_at', { ascending: false }).limit(10);
-
-      debtsData = debts || [];
+      const resDebts = await db.from('debts').select('*').order('next_payment_date', { ascending: true });
+      const resPayments = await db.from('payments').select('*, debts(title)').order('paid_at', { ascending: false }).limit(10);
+      debtsData = resDebts.data || new Array();
       renderChart();
       renderDebts();
-      renderPayments(payments || []);
+      renderPayments(resPayments.data || new Array());
     }
-
-    function formatMoney(num) {
-      return Number(num).toLocaleString('ru-RU');
-    }
-
+    function formatMoney(num) { return Number(num).toLocaleString('ru-RU'); }
     function renderChart() {
       const totalInitial = debtsData.reduce((sum, d) => sum + Number(d.total_amount), 0);
       const totalRemaining = debtsData.reduce((sum, d) => sum + Number(d.remaining_amount), 0);
       const totalPaid = Math.max(0, totalInitial - totalRemaining);
-
       document.getElementById('total-initial').innerText = formatMoney(totalInitial);
       document.getElementById('total-remaining').innerText = formatMoney(totalRemaining);
       document.getElementById('total-paid').innerText = formatMoney(totalPaid);
-
       const ctx = document.getElementById('debtChart').getContext('2d');
       if (chartInstance) chartInstance.destroy();
-
       const hasData = totalInitial > 0;
       chartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
-          labels: ['Выплачено', 'Осталось'],
-          datasets: [{
-            data: hasData ? [totalPaid, totalRemaining] :,
-            backgroundColor: hasData ? ['#10b981', '#334155'] : ['#1e293b', '#1e293b'],
-            borderWidth: 0,
-            cutout: '78%'
-          }]
+          labels: new Array('Выплачено', 'Осталось'),
+          datasets: new Array({ data: hasData ? new Array(totalPaid, totalRemaining) : new Array(0, 1), backgroundColor: hasData ? new Array('#10b981', '#334155') : new Array('#1e293b', '#1e293b'), borderWidth: 0, cutout: '78%' })
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false }, tooltip: { enabled: hasData } }
-        }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: hasData } } }
       });
     }
-
     function getFreqLabel(freq, days) {
       if (freq === 'monthly_1st') return '1-го числа каждого мес.';
+      if (freq === 'every_7_days') return 'Каждые 7 дней';
+      return 'Каждые ' + days + ' дн.';
+    }
+    function renderDebts() {
+      const list = document.getElementById('debts-list');
+      if (debtsData.length === 0) {
+        list.innerHTML = '<div class="text-center text-slate-500 text-sm py-6 bg-slate-800/40 rounded-2xl">Долгов пока нет. Нажмите «+ Долг».</div>';
+        return;
+      }
+      list.innerHTML = debtsData.map(d => {
+        const total = Number(d.total_amount), rem = Number(d.remaining_amount), paid = Math.max(0, total - rem);
+        const percent = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 100;
+        const isClosed = rem <= 0;
+        const dateStr = new Date(d.next_payment_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+        const subText = isClosed ? 'Полностью закрыт 🎉' : 'След. платеж: <span class="text-amber-400 font-medium">' + dateStr + '</span> (' + getFreqLabel(d.frequency, d.custom_days) + ')';
+        const payBtn = !isClosed ? '<button onclick="openPayModal(\'' + d.id + '\')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 rounded-xl text-sm transition">Внести платеж (' + formatMoney(d.regular_payment) + ')</button>' : '';
+        return '<div class="bg-slate-800 border ' + (isClosed ? 'border-emerald-500/30 opacity-60' : 'border-slate-700/60') + ' rounded-2xl p-4 space-y-3"><div class="flex justify-between items-start"><div><h3 class="font-bold text-base">' + d.title + '</h3><p class="text-xs text-slate-400 mt-0.5">' + subText + '</p></div><button onclick="deleteDebt(\'' + d.id + '\')" class="text-slate-500 hover:text-rose-400 text-xs px-2 py-1">Удалить</button></div><div><div class="flex justify-between text-xs mb-1"><span class="text-slate-400">Остаток: <strong class="text-white">' + formatMoney(rem) + '</strong> из ' + formatMoney(total) + '</span><span class="text-emerald-400 font-semibold">' + percent + '%</span></div><div class="w-full bg-slate-900 rounded-full h-2.5 overflow-hidden"><div class="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style="width: ' + percent + '%"></div></div></div>' + payBtn + '</div>';
+      }).join('');
+    }
+    function renderPayments(payments) {
+      const list = document.getElementById('payments-list');
+      if (payments.length === 0) { list.innerHTML = '<div class="text-slate-500 text-center py-2">История платежей пуста</div>'; return; }
+      list.innerHTML = payments.map(p => {
+        const d = new Date(p.paid_at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+        return '<div class="flex justify-between items-center bg-slate-800/40 px-3 py-2 rounded-xl border border-slate-800"><div><span class="font-medium text-slate-200">' + (p.debts ? p.debts.title : 'Долг') + '</span><span class="text-slate-500 ml-1">• ' + p.paid_by_name + ' (' + d + ')</span></div><span class="text-emerald-400 font-semibold">-' + formatMoney(p.amount) + '</span></div>';
+      }).join('');
+    }
+    function toggleCustomDays() { document.getElementById('custom-days-block').classList.toggle('hidden', document.getElementById('new-freq').value !== 'custom_days'); }
+    function openAddModal() { document.getElementById('add-modal').classList.remove('hidden'); }
+    function openPayModal(id) {
+      selectedDebt = debtsData.find(d => d.id === id);
+      if (!selectedDebt) return;
+      document.getElementById('pay-modal-title').innerText = selectedDebt.title;
+      document.getElementById('pay-modal-sub').innerText = 'Текущий остаток: ' + formatMoney(selectedDebt.remaining_amount);
+      document.getElementById('pay-amount').value = Math.min(selectedDebt.regular_payment, selectedDebt.remaining_amount);
+      document.getElementById('pay-modal').classList.remove('hidden');
+    }
+    function closeModals() { document.getElementById('add-modal').classList.add('hidden'); document.getElementById('pay-modal').classList.add('hidden'); }
+    async function saveDebt() {
+      const title = document.getElementById('new-title').value.trim(), total = Number(document.getElementById('new-total').value);
+      const regular = Number(document.getElementById('new-regular').value) || total, frequency = document.getElementById('new-freq').value;
+      const custom_days = Number(document.getElementById('new-custom-days').value) || 30, next_payment_date = document.getElementById('new-date').value;
+      if (!title || !total || !next_payment_date) return alert('Заполните название, сумму и дату!');
+      await db.from('debts').insert(new Array({ title: title, total_amount: total, remaining_amount: total, regular_payment: regular, frequency: frequency, custom_days: custom_days, next_payment_date: next_payment_date }));
+      document.getElementById('new-title').value = ''; document.getElementById('new-total').value = ''; document.getElementById('new-regular').value = '';
+      closeModals(); await loadData();
+    }
+    function calculateNextDate(currentDateStr, freq, customDays) {
+      const d = new Date(currentDateStr);
+      if (freq === 'monthly_1st') return formatDateISO(new Date(d.getFullYear(), d.getMonth() + 1, 1));
+      if (freq === 'every_7_days') { d.setDate(d.getDate() + 7); return formatDateISO(d); }
+      d.setDate(d.getDate() + Number(customDays || 30)); return formatDateISO(d);
+    }
+    async function submitPayment() {
+      const amount = Number(document.getElementById('pay-amount').value);
+      if (!amount || amount <= 0 || !selectedDebt) return;
+      const newRemaining = Math.max(0, Number(selectedDebt.remaining_amount) - amount);
+      const nextDate = calculateNextDate(selectedDebt.next_payment_date, selectedDebt.frequency, selectedDebt.custom_days);
+      await db.from('payments').insert(new Array({ debt_id: selectedDebt.id, paid_by_name: currentUser.name, amount: amount }));
+      await db.from('debts').update({ remaining_amount: newRemaining, next_payment_date: nextDate }).eq('id', selectedDebt.id);
+      closeModals(); await loadData();
+    }
+    async function deleteDebt(id) { if (confirm('Удалить этот долг?')) { await db.from('debts').delete().eq('id', id); await loadData(); } }
+    init();
+  </script>
+</body>
+</html>
